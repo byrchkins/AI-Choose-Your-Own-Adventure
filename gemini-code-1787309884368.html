@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PROJECT ARCHIMEDES: HOLLOW GEOMETRY</title>
+    <style>
+        :root {
+            --bg-color: #070709;
+            --panel-bg: #111116;
+            --border-color: #2e2e38;
+            --text-color: #d2d2d8;
+            --accent-amber: #ffb300;
+            --accent-cyan: #00e5ff;
+            --accent-green: #00ff66;
+            --accent-red: #ff3333;
+            --font-mono: "Courier New", Courier, monospace;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--font-mono);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        #game-container {
+            width: 100%;
+            max-width: 950px;
+            background-color: var(--panel-bg);
+            border: 2px solid var(--border-color);
+            box-shadow: 0 0 30px rgba(0,0,0,0.9);
+            padding: 25px;
+            position: relative;
+            box-sizing: border-box;
+        }
+
+        #game-container::before {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.35) 50%);
+            background-size: 100% 4px;
+            z-index: 10;
+            pointer-events: none;
+            opacity: 0.7;
+        }
+
+        .header-bar {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+            font-size: 0.85em;
+            color: #888;
+        }
+
+        .status-tag {
+            color: var(--accent-amber);
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        .category-tag {
+            color: #88a;
+            font-size: 0.8em;
+            text-transform: uppercase;
+        }
+
+        /* Map HUD Component */
+        .map-card {
+            background: #09090d;
+            border: 1px solid #22222e;
+            padding: 12px;
+            margin-bottom: 15px;
+            position: relative;
+        }
+
+        .map-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.75em;
+            color: var(--accent-cyan);
+            border-bottom: 1px dashed #222233;
+            padding-bottom: 6px;
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+        }
+
+        .map-toggle-btn {
+            background: none;
+            border: 1px solid var(--border-color);
+            color: var(--accent-amber);
+            font-family: var(--font-mono);
+            font-size: 0.75em;
+            cursor: pointer;
+            padding: 2px 6px;
+        }
+
+        .map-toggle-btn:hover {
+            background: #1e1e2a;
+        }
+
+        .svg-map-wrapper {
+            width: 100%;
+            height: 160px;
+            background: #030305;
+            border: 1px solid #1a1a24;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .map-node {
+            fill: #151520;
+            stroke: #444455;
+            stroke-width: 2;
+            transition: all 0.3s ease;
+        }
+
+        .map-node.active {
+            fill: var(--accent-amber);
+            stroke: #ffffff;
+            stroke-width: 3;
+            filter: drop-shadow(0px 0px 6px var(--accent-amber));
+        }
+
+        .map-path {
+            stroke: #2a2a38;
+            stroke-width: 2;
+            stroke-dasharray: 4;
+        }
+
+        .map-path.open {
+            stroke: var(--accent-cyan);
+            stroke-dasharray: 0;
+        }
+
+        .map-path.locked {
+            stroke: var(--accent-red);
+            stroke-dasharray: 3;
+        }
+
+        .map-path.hazard {
+            stroke: var(--accent-amber);
+            stroke-dasharray: 2;
+        }
+
+        .node-text {
+            fill: #777788;
+            font-family: var(--font-mono);
+            font-size: 9px;
+            font-weight: bold;
+            text-anchor: middle;
+            pointer-events: none;
+        }
+
+        .node-text.active {
+            fill: #ffffff;
+        }
+
+        .map-legend {
+            display: flex;
+            gap: 15px;
+            font-size: 0.7em;
+            color: #888;
+            margin-top: 8px;
+            justify-content: center;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .dot-you { background: var(--accent-amber); box-shadow: 0 0 5px var(--accent-amber); }
+        .dot-open { background: var(--accent-cyan); }
+        .dot-locked { background: var(--accent-red); }
+        .dot-hazard { background: var(--accent-amber); }
+
+        /* Image Frame */
+        .image-frame {
+            width: 100%;
+            height: 280px;
+            background-color: #000;
+            border: 1px solid var(--border-color);
+            margin-bottom: 15px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .image-frame img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            filter: grayscale(40%) contrast(120%) sepia(20%);
+            transition: opacity 0.5s ease-in-out;
+        }
+
+        .image-loader {
+            position: absolute;
+            color: var(--accent-amber);
+            font-size: 0.85em;
+            letter-spacing: 1px;
+            text-align: center;
+        }
+
+        .visual-prompt {
+            background-color: #050507;
+            border: 1px dashed #3a3a46;
+            padding: 10px;
+            font-size: 0.75em;
+            color: #888;
+            margin-bottom: 15px;
+            line-height: 1.4;
+        }
+
+        .visual-prompt span {
+            color: var(--accent-amber);
+            font-weight: bold;
+        }
+
+        .scene-text {
+            font-size: 1.02em;
+            line-height: 1.6;
+            margin-bottom: 15px;
+            color: #eee;
+        }
+
+        .inspection-box {
+            background: #181820;
+            border-left: 4px solid var(--accent-amber);
+            padding: 12px;
+            margin-bottom: 15px;
+            font-size: 0.92em;
+            color: #ccc;
+        }
+
+        .inventory-bar {
+            background: #0a0a0d;
+            border: 1px solid #222;
+            padding: 8px 12px;
+            margin-bottom: 15px;
+            font-size: 0.82em;
+            color: #888;
+        }
+
+        .inventory-bar span {
+            color: #fff;
+            font-weight: bold;
+        }
+
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .btn {
+            background-color: #16161e;
+            color: #fff;
+            border: 1px solid var(--border-color);
+            padding: 12px 15px;
+            text-align: left;
+            font-family: var(--font-mono);
+            font-size: 0.9em;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            z-index: 20;
+        }
+
+        .btn:hover {
+            background-color: #242432;
+            border-color: var(--accent-amber);
+            color: var(--accent-amber);
+        }
+
+        .secret-trigger {
+            background: rgba(211, 47, 47, 0.1);
+            border: 1px dashed var(--accent-red);
+            color: #ff8888;
+            padding: 8px 12px;
+            margin-top: 10px;
+            font-size: 0.85em;
+            cursor: pointer;
+            display: inline-block;
+            z-index: 20;
+            position: relative;
+        }
+
+        .secret-trigger:hover {
+            background: rgba(211, 47, 47, 0.3);
+            color: #fff;
+        }
+
+        .audio-cue {
+            font-size: 0.75em;
+            color: #666;
+            margin-top: 15px;
+            font-style: italic;
+            border-top: 1px dotted #222;
+            padding-top: 8px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div class="header-bar">
+        <div>LOCATION: <span id="location-name">--</span> <span class="category-tag" id="category-tag"></span></div>
+        <div class="status-tag">SYSTEM: ONLINE</div>
+    </div>
+
+    <!-- TACTICAL MAP HUD -->
+    <div class="map-card">
+        <div class="map-header">
+            <span>FACILITY TACTICAL SCHEMATIC // SUB-LEVEL 07</span>
+            <button class="map-toggle-btn" id="map-toggle" onclick="toggleMap()">[ MINIMIZE MAP ]</button>
+        </div>
+        <div id="map-body">
+            <div class="svg-map-wrapper">
+                <svg viewBox="0 0 600 160">
+                    <line x1="0" y1="40" x2="600" y2="40" stroke="#11111a" stroke-width="1" />
+                    <line x1="0" y1="80" x2="600" y2="80" stroke="#11111a" stroke-width="1" />
+                    <line x1="0" y1="120" x2="600" y2="120" stroke="#11111a" stroke-width="1" />
+                    <line x1="150" y1="0" x2="150" y2="160" stroke="#11111a" stroke-width="1" />
+                    <line x1="300" y1="0" x2="300" y2="160" stroke="#11111a" stroke-width="1" />
+                    <line x1="450" y1="0" x2="450" y2="160" stroke="#11111a" stroke-width="1" />
+
+                    <line id="path-junc-arch" class="map-path open" x1="120" y1="80" x2="220" y2="35" />
+                    <line id="path-junc-geo" class="map-path open" x1="120" y1="80" x2="220" y2="125" />
+                    <line id="path-junc-core" class="map-path locked" x1="120" y1="80" x2="360" y2="80" />
+                    <line id="path-arch-geo" class="map-path hazard" x1="220" y1="35" x2="220" y2="125" />
+                    <line id="path-geo-core" class="map-path locked" x1="220" y1="125" x2="360" y2="80" />
+                    <line id="path-access-core" class="map-path locked" x1="360" y1="80" x2="500" y2="80" />
+
+                    <g id="node-z1">
+                        <rect class="map-node" id="rect-z1" x="70" y="60" width="100" height="40" rx="4" />
+                        <text class="node-text" id="text-z1" x="120" y="84">JUNCTION HUB</text>
+                    </g>
+                    <g id="node-z2">
+                        <rect class="map-node" id="rect-z2" x="170" y="15" width="100" height="40" rx="4" />
+                        <text class="node-text" id="text-z2" x="220" y="39">SOVIET ARCHIVE</text>
+                    </g>
+                    <g id="node-z3">
+                        <rect class="map-node" id="rect-z3" x="170" y="105" width="100" height="40" rx="4" />
+                        <text class="node-text" id="text-z3" x="220" y="129">GEOTHERMAL PLANT</text>
+                    </g>
+                    <g id="node-z4">
+                        <rect class="map-node" id="rect-z4" x="310" y="60" width="100" height="40" rx="4" />
+                        <text class="node-text" id="text-z4" x="360" y="84">CORE ACCESS</text>
+                    </g>
+                    <g id="node-z5">
+                        <rect class="map-node" id="rect-z5" x="450" y="60" width="100" height="40" rx="4" />
+                        <text class="node-text" id="text-z5" x="500" y="84">ANOMALY CORE</text>
+                    </g>
+
+                    <circle id="player-blip" cx="120" cy="80" r="5" fill="#ffb300" stroke="#ffffff" stroke-width="2">
+                        <animate attributeName="r" values="4;7;4" dur="1.5s" repeatCount="indefinite"/>
+                    </circle>
+                </svg>
+            </div>
+            <div class="map-legend">
+                <div class="legend-item"><span class="dot dot-you"></span> YOU ARE HERE</div>
+                <div class="legend-item"><span class="dot dot-open"></span> OPEN CORRIDOR</div>
+                <div class="legend-item"><span class="dot dot-locked"></span> LOCKED DOOR</div>
+                <div class="legend-item"><span class="dot dot-hazard"></span> HAZARD SECTOR</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="image-frame">
+        <div class="image-loader" id="image-loader">GENERATING AI SCENE IMAGE...</div>
+        <img id="scene-image" src="" alt="Scene Visual" style="opacity: 0;">
+    </div>
+
+    <div class="inventory-bar">
+        INVENTORY & KNOWLEDGE: <span id="inventory-list">None</span>
+    </div>
+
+    <div class="visual-prompt" id="visual-prompt">
+        <span>[AI IMAGE PROMPT]:</span> Loading scene parameters...
+    </div>
+
+    <div class="scene-text" id="scene-text"></div>
+
+    <div class="inspection-box" id="inspection-box" style="display: none;"></div>
+
+    <div class="button-group" id="button-group"></div>
+
+    <div id="secret-container"></div>
+
+    <div class="audio-cue" id="audio-cue"></div>
+</div>
+
+<script>
+    let audioCtx = null;
+    let noiseNode = null;
+
+    function initAudio() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const bufferSize = audioCtx.sampleRate * 2;
+            const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const output = noiseBuffer.getChannelData(0);
+            let lastOut = 0.0;
+            for (let i = 0; i < bufferSize; i++) {
+                const white = Math.random() * 2 - 1;
+                output[i] = (lastOut + (0.02 * white)) / 1.02;
+                lastOut = output[i];
+                output[i] *= 0.08;
+            }
+            noiseNode = audioCtx.createBufferSource();
+            noiseNode.buffer = noiseBuffer;
+            noiseNode.loop = true;
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = 100;
+            noiseNode.connect(filter);
+            filter.connect(audioCtx.destination);
+            noiseNode.start();
+        }
+    }
+
+    // AUDIO SYNTHESIZERS FOR DYNAMIC ACTIONS
+    function playClickSound() {
+        if (!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(80, audioCtx.currentTime + 0.04);
+        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.04);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.04);
+    }
+
+    // Sound: Walk In / Forward Exploration (Heavy double concrete footstep)
+    function playWalkInSound() {
+        if (!audioCtx) return;
+        [0, 0.14].forEach((delay) => {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(140, audioCtx.currentTime + delay);
+            osc.frequency.exponentialRampToValueAtTime(35, audioCtx.currentTime + delay + 0.09);
+            gain.gain.setValueAtTime(0.25, audioCtx.currentTime + delay);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + delay + 0.09);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(audioCtx.currentTime + delay);
+            osc.stop(audioCtx.currentTime + delay + 0.09);
+        });
+    }
+
+    // Sound: Walk Out / Backtracking Step (Lighter retreating footstep tone)
+    function playWalkOutSound() {
+        if (!audioCtx) return;
+        [0, 0.12].forEach((delay) => {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(240, audioCtx.currentTime + delay);
+            osc.frequency.exponentialRampToValueAtTime(80, audioCtx.currentTime + delay + 0.06);
+            gain.gain.setValueAtTime(0.18, audioCtx.currentTime + delay);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + delay + 0.06);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(audioCtx.currentTime + delay);
+            osc.stop(audioCtx.currentTime + delay + 0.06);
+        });
+    }
+
+    // Sound: Item Pickup / Knowledge Acquired (3-note bright retro synth chime)
+    function playItemPickupSound() {
+        if (!audioCtx) return;
+        const notes = [523.25, 659.25, 783.99]; // C5 -> E5 -> G5
+        notes.forEach((freq, idx) => {
+            const delay = idx * 0.07;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime + delay);
+            gain.gain.setValueAtTime(0.18, audioCtx.currentTime + delay);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + delay + 0.15);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(audioCtx.currentTime + delay);
+            osc.stop(audioCtx.currentTime + delay + 0.15);
+        });
+    }
+
+    // Sound: Inspection (Tactile metallic tick)
+    function playInspectSound() {
+        if (!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(850, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(150, audioCtx.currentTime + 0.03);
+        gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.03);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.03);
+    }
+
+    const state = { currentSlide: 1, inventory: [], mapVisible: true };
+
+    function addItem(item) { if (!state.inventory.includes(item)) state.inventory.push(item); }
+    function hasItem(item) { return state.inventory.includes(item); }
+    function resetState() { state.inventory = []; state.currentSlide = 1; }
+
+    function toggleMap() {
+        const body = document.getElementById("map-body");
+        const btn = document.getElementById("map-toggle");
+        playInspectSound();
+        if (state.mapVisible) {
+            body.style.display = "none";
+            btn.innerText = "[ EXPAND MAP ]";
+            state.mapVisible = false;
+        } else {
+            body.style.display = "block";
+            btn.innerText = "[ MINIMIZE MAP ]";
+            state.mapVisible = true;
+        }
+    }
+
+    function updateMapHUD(slideId) {
+        for (let i = 1; i <= 5; i++) {
+            const rect = document.getElementById(`rect-z${i}`);
+            const text = document.getElementById(`text-z${i}`);
+            if (rect) rect.classList.remove("active");
+            if (text) text.classList.remove("active");
+        }
+
+        const blip = document.getElementById("player-blip");
+        let activeZone = 1;
+        let blipX = 120, blipY = 80;
+
+        if (slideId >= 1 && slideId <= 10) {
+            activeZone = 1; blipX = 120; blipY = 80;
+        } else if (slideId >= 11 && slideId <= 25) {
+            activeZone = 2; blipX = 220; blipY = 35;
+        } else if (slideId >= 26 && slideId <= 40) {
+            activeZone = 3; blipX = 220; blipY = 125;
+        } else if (slideId >= 41 && slideId <= 49) {
+            activeZone = 4; blipX = 360; blipY = 80;
+        } else if (slideId >= 50 && slideId <= 55) {
+            activeZone = 5; blipX = 500; blipY = 80;
+        }
+
+        const currentRect = document.getElementById(`rect-z${activeZone}`);
+        const currentText = document.getElementById(`text-z${activeZone}`);
+        if (currentRect) currentRect.classList.add("active");
+        if (currentText) currentText.classList.add("active");
+
+        if (blip) {
+            blip.setAttribute("cx", blipX);
+            blip.setAttribute("cy", blipY);
+        }
+
+        const juncCorePath = document.getElementById("path-junc-core");
+        const geoCorePath = document.getElementById("path-geo-core");
+        const accessCorePath = document.getElementById("path-access-core");
+
+        if (hasItem("Access Card")) {
+            if (juncCorePath) juncCorePath.className.baseVal = "map-path open";
+        }
+        if (hasItem("Containment Protocol") || hasItem("Rubber Gloves")) {
+            if (geoCorePath) geoCorePath.className.baseVal = "map-path open";
+        }
+        if (slideId >= 41) {
+            if (accessCorePath) accessCorePath.className.baseVal = "map-path open";
+        }
+    }
+
+    const slides = {
+        1: {
+            location: "TITLE SCREEN", category: "Title Screen",
+            visual: "A stark brutalist concrete wall with flickering fluorescent tube light,rusted floating hypercube in concrete, 1974 film grain, high contrast horror",
+            audio: "Low-frequency thrumming brown noise, wet grinding concrete.",
+            text: "PROJECT ARCHIMEDES: Sub-Level 07. Containment is failing. Non-Euclidean passageways warp in real-time, folding in on themselves while rebar grinds like an agonizing puzzle box.",
+            buttons: [{ text: "Begin Descent into Sub-Level 07", target: 2 }]
+        },
+        2: {
+            location: "The Fractured Junction", category: "Room Hub",
+            visual: "Subterranean brutalist T-junction, raw concrete beams twisting overhead at impossible angles, steam rising from fractures, 1970s cold war facility",
+            audio: "Rhythmic metallic groaning and timed steam bursts.",
+            text: "You stand at the primary junction of Sub-Level 07 as Dr. Arthur Vance. Structural support cables snap in distant corridors. To your left, a reinforced corridor leads to the Soviet Archive; to your right, thermal tremors shake the Geothermal Plant; straight ahead lies a locked maintenance array.",
+            buttons: [
+                { text: "[INSPECT] Maintenance Control Panel", target: 3 },
+                { text: "[EXPLORE] Soviet Archive Corridor (Lore Path)", target: 11 },
+                { text: "[EXPLORE] Geothermal Plant Gate (Hazard Path)", target: 26 },
+                { text: "[INSPECT] Fractured Transit Tunnel", target: 7 }
+            ]
+        },
+        3: {
+            location: "Maintenance Panel", category: "Inspection Sub-Slide",
+            visual: "Close up open steel breaker box with cyrillic text warnings, electrical blue static sparks inside, dark concrete wall",
+            audio: "High-pitched electrical humming and erratic sparking.",
+            text: "The secondary breaker array controls section locks for Zone 1. A heavy mechanical latch holds an emergency compartment closed.",
+            inspection: "Schematics reveal two primary power conduits: a high-voltage red lead and a slow-drain blue bypass lead.",
+            buttons: [
+                { text: "[STEP BACK] Return to Fractured Junction", target: 2 },
+                { text: "[INTERACT] Initiate Circuit Bypass", target: 4 }
+            ]
+        },
+        4: {
+            location: "Circuit Bypass", category: "Puzzle",
+            visual: "Exposed color-coded electrical wiring harness inside heavy steel breaker housing, high tension sparks",
+            audio: "Intense 60Hz hum.",
+            text: "You hold wire snips over the harness. Cutting the wrong wire could cause an explosive feedback loop.",
+            buttons: [
+                { text: "Cut Red Wire (High Risk / Immediate Override)", target: 5, action: () => addItem("Access Card") },
+                { text: "Cut Blue Wire (Slow / Insulated Drain)", target: 6, action: () => addItem("Rubber Gloves") },
+                { text: "[STEP BACK] Abort Bypass", target: 3 }
+            ]
+        },
+        5: {
+            location: "Circuit Overload", category: "Progression Event",
+            visual: "Electric arc-flash sparks illuminating brutalist concrete, brass keycard dropping out of opened metal drawer",
+            audio: "Loud electrical pop followed by heavy solenoid snap.",
+            text: "Sparks singe your coat sleeve, but the high-voltage bypass forces the compartment open. Inside, you retrieve a heavy 'Brass Access Card'.",
+            buttons: [{ text: "Return to Fractured Junction", target: 2 }]
+        },
+        6: {
+            location: "Safe De-energization", category: "Progression Event",
+            visual: "Heavy insulated rubber gloves resting in an unlatched emergency box, cold blue light",
+            audio: "Electrical hum winding down into silence.",
+            text: "Power safely bleeds off without triggering structural alarm locks. An emergency locker unlatches, yielding a pair of 'Heavy Rubber Gloves'.",
+            buttons: [{ text: "Return to Fractured Junction", target: 2 }]
+        },
+        7: {
+            location: "Fractured Transit Tunnel", category: "Room Hub",
+            visual: "Long concrete tunnel where floor and ceiling twist at 45 degree angle, impossible non-euclidean geometry, shadow",
+            audio: "Distant echo of grinding stone and wet drops.",
+            text: "Walking here causes disorientation as your vestibular system conflicts with the non-Euclidean geometry. Crushed metal equipment litters the pathway.",
+            buttons: [
+                { text: "[INSPECT] Crushed Ventilation Shaft", target: 8 },
+                { text: "[STEP BACK] Return to Junction", target: 2 }
+            ]
+        },
+        8: {
+            location: "Crushed Ventilation Shaft", category: "Inspection Sub-Slide",
+            visual: "Sheet metal air duct flattened like accordion under thousands of pounds of collapsed concrete slabs",
+            audio: "Creaking air ducts under tension.",
+            text: "The ductwork once led to Sub-Level 08, but space has compressed it into a solid ribbon of steel.",
+            inspection: "Peering into the remaining gap reveals a sheer drop into white geometric void.",
+            buttons: [
+                { text: "[STEP BACK] Return to Transit Tunnel", target: 7 },
+                { text: "[COMMIT] Crawl into the Narrow Gap", target: 9 }
+            ]
+        },
+        9: {
+            location: "Crushed by Mass", category: "Death Ending",
+            visual: "Concrete walls snapping closed together, black void, high contrast destruction, brutalist crush",
+            audio: "Bone-shattering stone crunch followed by sudden absolute silence.",
+            text: "The walls fold inward in a millisecond. Space closes around you, crushing your body into the structural floorboards.",
+            buttons: [{ text: "Re-initialize Experiment", target: 1, action: () => resetState() }]
+        },
+        10: {
+            location: "Containment Boundary Gate", category: "Progression Event",
+            visual: "Massive dual piston Soviet blast door made of reinforced iron, emergency red beacon light",
+            audio: "Pneumatic hiss and heavy iron drop.",
+            text: "The primary seal between Zone 1 and the deep core. High-voltage locks keep it shut.",
+            buttons: [
+                { text: "Use Access Card to Disengage Lock", target: 41, reqItem: "Access Card" },
+                { text: "[STEP BACK] Return to Junction", target: 2 }
+            ]
+        },
+
+        // ZONE 2: SOVIET ARCHIVES (Slides 11–25)
+        11: {
+            location: "Soviet Archive Reception", category: "Room Hub",
+            visual: "Dark Soviet office archives, steel filing cabinets fused tilted into raw concrete walls, confidential documents on desk, cyrillic posters",
+            audio: "Low, wet coughing coming from behind a locked steel door.",
+            text: "This sector handled data logging for Project ARCHIMEDES. Confidential reports are strewn across an overturned desk.",
+            buttons: [
+                { text: "[INSPECT] Filing Cabinets", target: 12 },
+                { text: "[EXPLORE] Containment Audit Office", target: 13 },
+                { text: "[INSPECT] Security Terminal Desk", target: 19 },
+                { text: "[STEP BACK] Return to Junction", target: 2 }
+            ]
+        },
+        12: {
+            location: "Filing Cabinets", category: "Inspection Sub-Slide",
+            visual: "Close up rusted filing cabinet drawers wedged mid open, red Soviet dossiers inside",
+            audio: "Paper rustling and metallic creaks.",
+            text: "Dozens of dossiers are crushed into pulp, but two major Soviet research folders remain intact.",
+            inspection: "One folder contains structural stress calculations; the other contains high-pressure valve protocols.",
+            buttons: [
+                { text: "[STEP BACK] Return to Archive Reception", target: 11 },
+                { text: "[TAKE] Containment Protocol Document", target: 16, action: () => addItem("Containment Protocol") },
+                { text: "[READ] Structural Weakness Log", target: 18, action: () => addItem("Structural Knowledge") }
+            ]
+        },
+        13: {
+            location: "Containment Audit Office", category: "Room Hub / Hazard",
+            visual: "Blood stained desk under harsh desk lamp light, chained heavy metal door behind desk rattling",
+            audio: "Frantic, wet scratching behind the chained door.",
+            text: "An ominous presence vibrates through the floorboards. Someone—or something—is locked inside the inner audit room.",
+            buttons: [
+                { text: "[INSPECT] Audit Office Wall Safe", target: 14 },
+                { text: "[INTERACT] Unlock the Chained Door", target: 17 },
+                { text: "[STEP BACK] Return to Archive Reception", target: 11 }
+            ]
+        },
+        14: {
+            location: "Audit Office Wall Safe", category: "Puzzle / Inspection",
+            visual: "Heavy cast iron safe embedded in concrete with four digit combination dial, vintage KGB lab",
+            audio: "Precision gear clicks.",
+            text: "A safe used by senior KGB observers to store containment keys during emergency shifts.",
+            inspection: "A note scratched into the dial housing reads: '1974 - Year of Hollow Alignment'.",
+            buttons: [
+                { text: "[STEP BACK] Return to Office", target: 13 },
+                { text: "[INTERACT] Enter Combination 1-9-7-4", target: 16, action: () => addItem("Containment Protocol") }
+            ]
+        },
+        15: {
+            location: "SECRET S1: Classified Dossier", category: "Secret Node",
+            visual: "Top secret KGB dossier stamped confidential, geometric diagrams showing bunker collapsing into anomaly",
+            audio: "Static-heavy audio recording playing in reverse.",
+            text: "SECRET DISCOVERY: ARCHIMEDES was never designed as a bunker. It is a spatial clamp intended to capture a higher-dimensional entity.",
+            secretTarget: { text: "Examine Glitched Red Folder", target: 15 },
+            buttons: [{ text: "[STEP BACK] Return to Archive Desk", target: 11 }]
+        },
+        16: {
+            location: "Protocol Document Acquired", category: "Progression Event",
+            visual: "Thick vinyl folder with Soviet crest being tucked into tactical jacket pocket",
+            audio: "Paper sliding into coat and buckle snapping.",
+            text: "You have acquired the 'Containment Protocol'. This document outlines the exact valve sequences required to manage Geothermal pressure.",
+            buttons: [{ text: "Return to Archive Reception", target: 11 }]
+        },
+        17: {
+            location: "Audit Creature Breach", category: "Death Ending",
+            visual: "Chains snapping open, black tendrils made of folded space bursting through doorway, horror atmosphere",
+            audio: "Unearthly shrieking roar accompanied by tearing metal.",
+            text: "Unlocking the door releases an entity woven from folded space. It absorbs you into its geometry in an instant.",
+            buttons: [{ text: "Re-initialize Experiment", target: 1, action: () => resetState() }]
+        },
+        18: {
+            location: "Structural Knowledge Logged", category: "Progression Event",
+            visual: "Close up technical mathematical blueprints with geometric stress lines and calculations",
+            audio: "Pages flipping rapidly.",
+            text: "You study the anomaly's anchor mechanics. You now possess 'Structural Knowledge', understanding how the facility's core folds.",
+            buttons: [{ text: "Return to Archive Reception", target: 11 }]
+        },
+        19: {
+            location: "Soviet Security Desk", category: "Inspection Sub-Slide",
+            visual: "Green monochrome phosphor CRT terminal showing glowing cyrillic map grid telemetry",
+            audio: "Monotonous cathode-ray tube buzz.",
+            text: "The terminal updates every few seconds as Sub-Level 07 warps.",
+            inspection: "A warning blares across the monitor: 'GEOTHERMAL LEVEL CRITICAL - VALVE OVERRIDE MANDATORY TO PREVENT COMPLETE COLLAPSE.'",
+            buttons: [
+                { text: "[STEP BACK] Return to Archive Reception", target: 11 },
+                { text: "[EXPLORE] Archive Transit Corridor", target: 20 }
+            ]
+        },
+        20: {
+            location: "Archive Transit Corridor", category: "Room Hub",
+            visual: "Narrow concrete hall lined with empty reel tape storage racks, harsh emergency lighting",
+            audio: "Echo of heavy boots on hollow floor plates.",
+            text: "This passageway bypasses the main junction, providing access toward the lower levels.",
+            buttons: [
+                { text: "[INSPECT] Microfilm Reader", target: 21 },
+                { text: "[EXPLORE] Archive Evacuation Shaft", target: 25 },
+                { text: "[STEP BACK] Return to Archive Security Desk", target: 19 }
+            ]
+        },
+        21: {
+            location: "Microfilm Reader", category: "Inspection Sub-Slide",
+            visual: "Illuminated glass microfilm screen showing magnified black and white archival photos from 1974",
+            audio: "Mechanical cooling fan noise.",
+            text: "The film shows photos of Dr. Vance standing next to Soviet scientists in 1974—yet Vance has no memory of this meeting.",
+            inspection: "The caption reads: 'Dr. Arthur Vance, Spatial Stabilization Director, Phase 3 Completion.'",
+            buttons: [
+                { text: "[STEP BACK] Return to Transit Corridor", target: 20 },
+                { text: "[INTERACT] Play Accompanying Reel", target: 22 }
+            ]
+        },
+        22: {
+            location: "Microfilm Audio Reel", category: "Progression Event",
+            visual: "Vintage reel to reel magnetic tape spinning under yellow light bulb",
+            audio: "Distorted tape audio: Vance's own voice speaking backwards.",
+            text: "The audio log confirms Vance has lived through this spatial collapse hundreds of times inside the puzzle box loop.",
+            buttons: [{ text: "Return to Transit Corridor", target: 20 }]
+        },
+        23: {
+            location: "Shredded Vault Records", category: "Inspection Sub-Slide",
+            visual: "Paper shredder bin filled with shredded confidential documents coated in industrial oil",
+            audio: "Faint rustling sound.",
+            text: "Someone attempted to erase all records of Project ARCHIMEDES before the containment breach.",
+            inspection: "Reassembling a scrap yields a partial code: 'VALVE SEQ: 4 - 1 - 9'.",
+            buttons: [{ text: "[STEP BACK] Return to Transit Corridor", target: 20 }]
+        },
+        24: {
+            location: "Archives Containment Collapse", category: "Death Ending",
+            visual: "Filing cabinets sliding upward across concrete ceiling, gravity reversal distortion",
+            audio: "Violent crashing sound followed by structural tearing.",
+            text: "Gravity flips violently. You fall upward into a ceiling of jagged steel rebar.",
+            buttons: [{ text: "Re-initialize Experiment", target: 1, action: () => resetState() }]
+        },
+        25: {
+            location: "Archive Evacuation Shaft", category: "Room Hub",
+            visual: "Vertical emergency concrete ladder shaft leading upward into dark fog",
+            audio: "Distant wind roaring up the shaft.",
+            text: "This shaft provides a direct shortcut bypassing intermediate hallways directly into the Geothermal sector.",
+            buttons: [
+                { text: "Climb Shaft to Geothermal Plant Hub", target: 26 },
+                { text: "[STEP BACK] Return to Transit Corridor", target: 20 }
+            ]
+        },
+
+        // ZONE 3: GEOTHERMAL PLANT (Slides 26–40)
+        26: {
+            location: "Geothermal Plant Hub", category: "Room Hub",
+            visual: "Industrial geothermal boiler room, massive steel pipes leaking steam, trembling concrete floor, dark atmosphere",
+            audio: "Deafening steam hissing and deep turbine hum.",
+            text: "Thermal expansion is warping the concrete floor. Without releasing the steam locks, the entire level will fracture.",
+            buttons: [
+                { text: "[INSPECT] Cooling System Control Panel", target: 27 },
+                { text: "[INSPECT] Manual Valve Array", target: 28 },
+                { text: "[EXPLORE] Sub-Turbine Floor", target: 32 },
+                { text: "[STEP BACK] Return to Junction", target: 2 }
+            ]
+        },
+        27: {
+            location: "Cooling System Control Panel", category: "Puzzle / Inspection",
+            visual: "Massive retro industrial console with three hydraulic iron levers marked with Cyrillic text",
+            audio: "Pneumatic pressure whines.",
+            text: "Diverting steam requires executing the precise sequence recorded in official protocols.",
+            inspection: "The primary sequence prompt reads: ENTER THREE-DIGIT OVERRIDE.",
+            buttons: [
+                { text: "Execute Sequence 4-1-9 (Requires Containment Protocol)", target: 31, reqItem: "Containment Protocol" },
+                { text: "Execute Sequence 1-9-4 (Random Guess)", target: 35 },
+                { text: "[STEP BACK] Return to Geothermal Hub", target: 26 }
+            ]
+        },
+        28: {
+            location: "Manual Valve Array", category: "Inspection Sub-Slide",
+            visual: "Red-hot glowing iron valve wheel leaking scalding white steam jets inside dark factory",
+            audio: "Screaming high-pressure steam.",
+            text: "The emergency pressure release valve is jammed solid by thermal expansion.",
+            inspection: "Attempting to turn this wheel bare-handed will cause severe burns.",
+            buttons: [
+                { text: "[STEP BACK] Return to Geothermal Hub", target: 26 },
+                { text: "[COMMIT] Force Valve with Metal Pipe (High Risk)", target: 29 },
+                { text: "[COMMIT] Turn Valve with Rubber Gloves", target: 30, reqItem: "Rubber Gloves" }
+            ]
+        },
+        29: {
+            location: "Pipe Shear Catastrophe", category: "Death Ending",
+            visual: "Steam pipe rupturing violently, white vapor engulfing frame, high pressure explosion",
+            audio: "Earsplitting explosion of superheated steam.",
+            text: "The pipe breaks! Superheated 500°C steam engulfs the room, vaporizing you instantly.",
+            buttons: [{ text: "Re-initialize Experiment", target: 1, action: () => resetState() }]
+        },
+        30: {
+            location: "Manual Venting Success", category: "Progression Event",
+            visual: "Hand wearing heavy black rubber glove turning large valve wheel, steam clearing",
+            audio: "High-pitched hiss fading into low, steady breathing.",
+            text: "Protected by your Heavy Rubber Gloves, you force the valve open. Pressure drops to safe levels.",
+            buttons: [{ text: "Proceed to Core Accessway Gate", target: 41 }]
+        },
+        31: {
+            location: "Automated Pressure Lock Release", category: "Progression Event",
+            visual: "Heavy floor locks unlatching automatically, blue cooling fluid rushing through clear pipes",
+            audio: "Heavy mechanical clunks and rush of cold liquid.",
+            text: "Sequence 4-1-9 accepted! The geothermal plant stabilizes, unlocking the reinforced hatch to the Core Accessway.",
+            buttons: [{ text: "Enter Maintenance Hatch to Core Accessway", target: 41 }]
+        },
+        32: {
+            location: "Sub-Turbine Floor", category: "Room Hub",
+            visual: "Metal catwalk suspended over massive dark spinning generator turbines, industrial sparks raining",
+            audio: "Deafening low-frequency turbine roar.",
+            text: "Vibrations here rattle your teeth. Sparks rain from overhead crane rails as space warps.",
+            buttons: [
+                { text: "[INSPECT] Leaking Steam Pipe", target: 33 },
+                { text: "[EXPLORE] Auxiliary Generator Room", target: 36 },
+                { text: "[STEP BACK] Return to Geothermal Hub", target: 26 }
+            ]
+        },
+        33: {
+            location: "Leaking Steam Pipe", category: "Inspection Sub-Slide",
+            visual: "Crack in giant 24-inch steel pressure pipe spraying high pressure hiss steam",
+            audio: "Sharp whistling hiss.",
+            text: "The crack is widening as the room's geometry shifts.",
+            inspection: "Passing through without sealing the pressure from the main hub will result in fatal burns.",
+            buttons: [{ text: "[STEP BACK] Return to Sub-Turbine Catwalk", target: 32 }]
+        },
+        34: {
+            location: "Overpressurized Boiler", category: "Puzzle",
+            visual: "Analog pressure gauge needle bouncing violently into red zone",
+            audio: "Siren blaring in slow motion.",
+            text: "The boiler is seconds from catastrophic failure.",
+            buttons: [
+                { text: "Vent Emergency Valve", target: 31, reqItem: "Rubber Gloves" },
+                { text: "[STEP BACK] Abort", target: 32 }
+            ]
+        },
+        35: {
+            location: "Superheated Thermal Blast", category: "Death Ending",
+            visual: "Blinding orange firestorm blast filling concrete room, explosion",
+            audio: "Explosive shockwave.",
+            text: "Incorrect sequence entry causes the boiler to rupture, incinerating Sector 3.",
+            buttons: [{ text: "Re-initialize Experiment", target: 1, action: () => resetState() }]
+        },
+        36: {
+            location: "Auxiliary Generator Room", category: "Room Hub",
+            visual: "Rows of abandoned diesel generators coated in dust and strange white spatial frost",
+            audio: "Eerie silence contrasted with distant thrumming.",
+            text: "Backup power systems for Project ARCHIMEDES.",
+            buttons: [
+                { text: "[EXPLORE] Maintenance Pit", target: 38 },
+                { text: "[STEP BACK] Return to Sub-Turbine Floor", target: 32 }
+            ]
+        },
+        37: {
+            location: "Geothermal Access Tunnel", category: "Room Hub",
+            visual: "Raw concrete tunnel curving upwards at impossible non euclidean angle",
+            audio: "Echoing wind.",
+            text: "This walkway bypasses damaged boiler sections directly into the Core transition area.",
+            buttons: [
+                { text: "Proceed toward Core Accessway", target: 41 },
+                { text: "[STEP BACK] Return to Auxiliary Room", target: 36 }
+            ]
+        },
+        38: {
+            location: "Sub-Level Maintenance Pit", category: "Inspection Sub-Slide",
+            visual: "Deep concrete pit flooded with oily black water, submerged industrial tools",
+            audio: "Water dripping into deep puddle.",
+            text: "Submerged tools and equipment sit at the bottom.",
+            inspection: "Floating on a wooden crate is an emergency hydrant wrench tool.",
+            buttons: [{ text: "[STEP BACK] Return to Generator Room", target: 36 }]
+        },
+        39: {
+            location: "Emergency Hydrant Array", category: "Inspection Sub-Slide",
+            visual: "Heavy cast brass water valves mounted on concrete wall",
+            audio: "Water humming inside pipes.",
+            text: "Controls cooling water distribution across the facility core.",
+            inspection: "Currently set to automatic override mode.",
+            buttons: [{ text: "[STEP BACK] Return to Generator Room", target: 36 }]
+        },
+        40: {
+            location: "Geothermal Exit Lock", category: "Progression Event",
+            visual: "Heavy pneumatic airlock door opening revealing glowing white core fog",
+            audio: "Airlock depressurization hiss.",
+            text: "You step out of the high-heat sector into the threshold of the Anomaly Core.",
+            buttons: [{ text: "Enter Core Accessway", target: 41 }]
+        },
+
+        // ZONE 4: CORE ACCESS & SPATIAL PUZZLES (Slides 41–49)
+        41: {
+            location: "The Core Accessway", category: "Room Hub / Converging Point",
+            visual: "Narrow concrete walkway bridge over pitch black void, floating geometric blocks in fog, non-euclidean spatial horror",
+            audio: "Eerie synthesized harmonic resonance with void wind.",
+            text: "You have reached the threshold of the spatial anomaly. Reality here is paper-thin. Below you lies pure non-Euclidean static.",
+            buttons: [
+                { text: "[EXPLORE] Cross Concrete Bridge", target: 42 },
+                { text: "[INSPECT] Observation Deck Terminal", target: 46 },
+                { text: "[EXPLORE] Prism Vault Array", target: 49 }
+            ]
+        },
+        42: {
+            location: "Stabilized Bridge Approach", category: "Progression Event",
+            visual: "Solid concrete bridge walkway holding steady over void, glowing hypercube core in distance",
+            audio: "Solid footstep echoes on stone.",
+            text: "Your stabilization actions in previous sectors have locked the bridge in local reality. You walk directly toward the Core Chamber.",
+            buttons: [{ text: "Proceed to The Anomaly Core", target: 50 }]
+        },
+        43: {
+            location: "Unstable Spatial Rift", category: "Hazard / Choice",
+            visual: "Broken concrete bridge snapped mid-way, gap over floating white static void",
+            audio: "Distorted temporal ringing.",
+            text: "Without proper sector stabilization, the pathway is fractured.",
+            buttons: [
+                { text: "Attempt to Leap Across Void", target: 44 },
+                { text: "[STEP BACK] Return to Core Accessway", target: 41 }
+            ]
+        },
+        44: {
+            location: "Spatial Shearing / Endless Fall", category: "Death Ending",
+            visual: "Falling endlessly through infinite mirror reflections of concrete hallway, void optical art horror",
+            audio: "Fading chime tones into complete silence.",
+            text: "You jump, but non-Euclidean space expands infinitely mid-air. You fall forever through geometric reflection planes.",
+            buttons: [{ text: "Re-initialize Experiment", target: 1, action: () => resetState() }]
+        },
+        45: {
+            location: "SECRET S2: Paradox Recording", category: "Secret Node",
+            visual: "Inverted antique brass pocket watch floating in mid air, ticking backwards, glowing geometric aura",
+            audio: "Ticking watch sound echoing in slow motion.",
+            text: "SECRET DISCOVERY: Dr. Vance is not a visitor in Project ARCHIMEDES. Vance IS the anchor consciousness sustaining the anomaly.",
+            buttons: [{ text: "[STEP BACK] Return to Core Accessway", target: 41 }]
+        },
+        46: {
+            location: "Observation Deck", category: "Room Hub",
+            visual: "Lead glass window observation room overlooking glowing hypercube anomaly, reel to reel tape deck on desk",
+            audio: "Reel-to-reel audio deck spinning on desk.",
+            text: "Soviet and American researchers sat here side-by-side monitoring the entity before containment failed in 1974.",
+            buttons: [
+                { text: "[INSPECT] Reel-to-Reel Recalibration Desk", target: 47 },
+                { text: "[STEP BACK] Return to Core Accessway", target: 41 }
+            ]
+        },
+        47: {
+            location: "Reel-to-Reel Recalibration Desk", category: "Puzzle / Inspection",
+            visual: "Magnetic tape recorder connected to spatial frequency meters with green glowing dials",
+            audio: "Static crackle and synthetic voice prompt.",
+            text: "Playing the spatial recalibration tape forces surrounding non-Euclidean geometry to temporarily straighten.",
+            inspection: "The control toggle is set to 'PLAY RECALIBRATION TAPE'.",
+            buttons: [
+                { text: "[STEP BACK] Return to Observation Deck", target: 46 },
+                { text: "[INTERACT] Play Spatial Recalibration Tape", target: 48 }
+            ]
+        },
+        48: {
+            location: "Inverted Stairwell", category: "Progression Event",
+            visual: "Concrete staircase spiraling both upward and downward simultaneously to same doorway, non euclidean architectural art",
+            audio: "Rhythmic step echoes in harmonic unison.",
+            text: "The audio calibration stabilizes the stairwell, allowing you to walk down to the core vault door.",
+            buttons: [{ text: "Descend Stairwell to Core Hub", target: 50 }]
+        },
+        49: {
+            location: "Prism Vault Mirror Array", category: "Puzzle / Room Hub",
+            visual: "Room constructed of polished steel mirrors reflecting infinite distorted figures of man in coat",
+            audio: "High glass chiming tones.",
+            text: "Looking directly forward distorts perception. To navigate, you must use reflections.",
+            buttons: [
+                { text: "Walk Backward using Reflections", target: 42 },
+                { text: "Turn Around and Run Forward", target: 44 },
+                { text: "[STEP BACK] Return to Core Accessway", target: 41 }
+            ]
+        },
+
+        // ZONE 5: ENDINGS & SYNTHESIS (Slides 50–55)
+        50: {
+            location: "The Anomaly Core", category: "Final Hub",
+            visual: "Massive glowing white hypercube floating inside brutalist subterranean concrete chamber, gravity distortions",
+            audio: "Deep resonant bass thrumming and harmonic glass ringing.",
+            text: "You stand before the ARCHIMEDES entity. The spatial shifts freeze, awaiting your command. Your choices across Sub-Level 07 dictate how reality resets.",
+            buttons: [
+                { text: "TRIGGER ENDING A: The Keystone (Requires Access Card)", target: 51, reqItem: "Access Card" },
+                { text: "TRIGGER ENDING B: Entombment (Manual Core Seal)", target: 52 },
+                { text: "TRIGGER ENDING C: Zero Horizon (Requires Structural Knowledge)", target: 53, reqItem: "Structural Knowledge" }
+            ]
+        },
+        51: {
+            location: "ENDING A: THE KEYSTONE", category: "Ending",
+            visual: "Floating hypercube frozen into solid steel cube, concrete walls restored clean and straight, peaceful lighting",
+            audio: "Heavy mechanical locks engaging followed by clean quiet humming.",
+            text: "Using your Access Card, you initiate master containment. Hollow Geometry collapses into linear space. Sub-Level 07 stabilizes, and you ascend to the surface in 1974.",
+            buttons: [{ text: "Proceed to Mission Credits", target: 55 }]
+        },
+        52: {
+            location: "ENDING B: ENTOMBMENT", category: "Ending",
+            visual: "Massive concrete blast door sealing dark chamber shut forever, final lock engages",
+            audio: "Deafening thud of blast doors leaving only echoing breath.",
+            text: "You manually initiate complete structural seal from inside to protect the surface world. You remain trapped in the dark forever as the human anchor of Project ARCHIMEDES.",
+            buttons: [{ text: "Proceed to Mission Credits", target: 55 }]
+        },
+        53: {
+            location: "ENDING C: ZERO HORIZON", category: "Ending",
+            visual: "Human silhouette turning into transparent white glowing geometry, dissolving into infinite dimensional space",
+            audio: "Ascending cosmic harmonic chime sequence.",
+            text: "Possessing complete Structural Knowledge, you do not fear the anomaly—you master it. You transcend human physical form, becoming the eternal architect of Hollow Geometry.",
+            buttons: [{ text: "Proceed to Mission Credits", target: 55 }]
+        },
+        54: {
+            location: "Core Geometry Collapse", category: "Death Ending",
+            visual: "Screen imploding into small white dot in absolute darkness, spatial void",
+            audio: "Instantaneous vacuum silence.",
+            text: "Hesitation at the core causes total spatial collapse. Reality inside Sub-Level 07 erases itself.",
+            buttons: [{ text: "Re-initialize Experiment", target: 1, action: () => resetState() }]
+        },
+        55: {
+            location: "MISSION CREDITS", category: "Credits",
+            visual: "Black terminal screen with green glowing text listing project personnel and 1974 Soviet logs",
+            audio: "Low ambient synthesized thrum.",
+            text: "PROJECT ARCHIMEDES: HOLLOW GEOMETRY\nWritten & Designed by AI Narrative Engine\nSetting: Sub-Level 07 (1974)\nProtagonist: Dr. Arthur Vance\n\nThank you for exploring the non-linear Cold War puzzlebox.",
+            buttons: [{ text: "Return to Title Screen (Play Again)", target: 1, action: () => resetState() }]
+        }
+    };
+
+    function renderSlide(slideId) {
+        const slide = slides[slideId];
+        if (!slide) return;
+
+        state.currentSlide = slideId;
+
+        document.getElementById("location-name").innerText = slide.location;
+        document.getElementById("category-tag").innerText = `[${slide.category}]`;
+        document.getElementById("visual-prompt").innerHTML = `<span>[AI IMAGE PROMPT]:</span> ${slide.visual}`;
+        document.getElementById("scene-text").innerText = slide.text;
+        document.getElementById("audio-cue").innerText = `AUDIO CUE: ${slide.audio}`;
+
+        const invList = document.getElementById("inventory-list");
+        invList.innerText = state.inventory.length > 0 ? state.inventory.join(" | ") : "None";
+
+        updateMapHUD(slideId);
+
+        const imgElement = document.getElementById("scene-image");
+        const loader = document.getElementById("image-loader");
+        imgElement.style.opacity = "0";
+        loader.style.display = "block";
+
+        const encodedPrompt = encodeURIComponent(slide.visual + ", cinematic horror photography, 1970s film grain, brutalist architecture, photorealistic");
+        const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=800&height=280&nologo=true&seed=${slideId}`;
+
+        imgElement.onload = () => {
+            loader.style.display = "none";
+            imgElement.style.opacity = "1";
+        };
+        imgElement.onerror = () => {
+            loader.innerText = "[OFFLINE VISUAL MATRIX ACTIVE]";
+        };
+        imgElement.src = imageUrl;
+
+        const inspBox = document.getElementById("inspection-box");
+        if (slide.inspection) {
+            inspBox.style.display = "block";
+            inspBox.innerHTML = `<strong>INSPECTION DETAIL:</strong> ${slide.inspection}`;
+        } else {
+            inspBox.style.display = "none";
+        }
+
+        const secretContainer = document.getElementById("secret-container");
+        secretContainer.innerHTML = "";
+        if (slide.secretTarget) {
+            const secretBtn = document.createElement("div");
+            secretBtn.className = "secret-trigger";
+            secretBtn.innerText = `[HIDDEN ANOMALY]: ${slide.secretTarget.text}`;
+            secretBtn.onclick = () => {
+                initAudio();
+                playInspectSound();
+                renderSlide(slide.secretTarget.target);
+            };
+            secretContainer.appendChild(secretBtn);
+        }
+
+        const btnGroup = document.getElementById("button-group");
+        btnGroup.innerHTML = "";
+
+        slide.buttons.forEach((btnSpec) => {
+            const btn = document.createElement("button");
+            btn.className = "btn";
+            btn.innerText = btnSpec.text;
+
+            btn.onclick = () => {
+                initAudio();
+
+                if (btnSpec.reqItem && !hasItem(btnSpec.reqItem)) {
+                    playClickSound();
+                    alert(`REQUIREMENT MISSING: You must possess '${btnSpec.reqItem}' to perform this action!`);
+                    return;
+                }
+
+                // Execute action and trigger item pickup sound if inventory changed
+                const prevInvLength = state.inventory.length;
+                if (btnSpec.action) btnSpec.action();
+                const newInvLength = state.inventory.length;
+
+                const textUpper = btnSpec.text.toUpperCase();
+
+                if (newInvLength > prevInvLength) {
+                    playItemPickupSound();
+                } else if (textUpper.includes("STEP BACK") || textUpper.includes("ABORT") || textUpper.includes("RETURN")) {
+                    playWalkOutSound();
+                } else if (textUpper.includes("EXPLORE") || textUpper.includes("ENTER") || textUpper.includes("PROCEED") || textUpper.includes("BEGIN") || textUpper.includes("DESCENT") || textUpper.includes("CLIMB") || textUpper.includes("CROSS") || textUpper.includes("CRAWL") || textUpper.includes("TRIGGER")) {
+                    playWalkInSound();
+                } else if (textUpper.includes("INSPECT")) {
+                    playInspectSound();
+                } else {
+                    playClickSound();
+                }
+
+                renderSlide(btnSpec.target);
+            };
+
+            btnGroup.appendChild(btn);
+        });
+    }
+
+    window.onload = () => { renderSlide(1); };
+</script>
+</body>
+</html>
